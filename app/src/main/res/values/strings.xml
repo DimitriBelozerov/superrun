@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PitPat Lite</string>
+    <string name="connect">Verbinden</string>
+    <string name="disconnect">Trennen</string>
+    <string name="state_disconnected">Nicht verbunden</string>
+    <string name="state_scanning">Suche Laufband…</string>
+    <string name="state_connecting">Verbinde…</string>
+    <string name="state_connected">Verbunden</string>
+    <string name="belt_stopped">Gestoppt</string>
+    <string name="belt_running">Läuft</string>
+    <string name="belt_paused">Pause</string>
+    <string name="belt_starting">Startet…</string>
+    <string name="belt_unknown">—</string>
+    <string name="speed_unit">km/h</string>
+    <string name="target_label">Ziel</string>
+    <string name="distance">Strecke</string>
+    <string name="duration">Zeit</string>
+    <string name="steps">Schritte</string>
+    <string name="calories">kcal</string>
+    <string name="incline">Steigung</string>
+    <string name="start">Start</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stopp</string>
+    <string name="mute">Ton aus</string>
+    <string name="unmute">Ton an</string>
+    <string name="perm_denied">Bluetooth-Berechtigung fehlt</string>
+    <string name="bt_off">Bluetooth ist aus</string>
+    <string name="not_found">Kein Laufband gefunden</string>
+    <string name="no_service">Gerät ohne FBA0-Service</string>
+</resources>

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvConnection"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/state_disconnected"
+                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnConnect"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/connect" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvSpeed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="0.0"
+            android:textSize="72sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvBeltState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/belt_unknown"
+            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:columnCount="4"
+            android:useDefaultMargins="true">
+
+            <TextView android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="@string/distance" android:textAppearance="?attr/textAppearanceLabelMedium" />
+            <TextView android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="@string/duration" android:textAppearance="?attr/textAppearanceLabelMedium" />
+            <TextView android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="@string/steps" android:textAppearance="?attr/textAppearanceLabelMedium" />
+            <TextView android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="@string/calories" android:textAppearance="?attr/textAppearanceLabelMedium" />
+
+            <TextView android:id="@+id/tvDistance" android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="–" android:textAppearance="?attr/textAppearanceTitleLarge" />
+            <TextView android:id="@+id/tvDuration" android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="–" android:textAppearance="?attr/textAppearanceTitleLarge" />
+            <TextView android:id="@+id/tvSteps" android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="–" android:textAppearance="?attr/textAppearanceTitleLarge" />
+            <TextView android:id="@+id/tvCalories" android:layout_columnWeight="1" android:layout_width="0dp" android:gravity="center" android:text="–" android:textAppearance="?attr/textAppearanceTitleLarge" />
+        </GridLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/target_label"
+            android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSpeedMinus05"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="−0.5" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSpeedMinus01"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="−0.1" />
+
+            <TextView
+                android:id="@+id/tvTarget"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.2"
+                android:gravity="center"
+                android:text="2.0"
+                android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSpeedPlus01"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="+0.1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSpeedPlus05"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="+0.5" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rowPresets"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+
+        <LinearLayout
+            android:id="@+id/rowIncline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/incline"
+                android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnInclineMinus"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="−" />
+
+            <TextView
+                android:id="@+id/tvIncline"
+                android:layout_width="56dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="0"
+                android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnInclinePlus"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStart"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:text="@string/start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPause"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="@string/pause" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStop"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@android:color/holo_red_dark"
+                android:text="@string/stop" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMute"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:text="@string/mute" />
+
+        <TextView
+            android:id="@+id/tvDebug"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="monospace"
+            android:textSize="10sp"
+            android:alpha="0.5" />
+    </LinearLayout>
+</ScrollView>
