@@ -26,10 +26,18 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <de.dimitri.pitpatlite.LineChartView
-                android:id="@+id/weekChart"
+            <HorizontalScrollView
+                android:id="@+id/dayScroll"
                 android:layout_width="match_parent"
-                android:layout_height="120dp" />
+                android:layout_height="wrap_content"
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <de.dimitri.pitpatlite.LineChartView
+                    android:id="@+id/weekChart"
+                    android:layout_width="wrap_content"
+                    android:layout_height="136dp" />
+            </HorizontalScrollView>
 
             <TextView
                 android:id="@+id/tvTotals"

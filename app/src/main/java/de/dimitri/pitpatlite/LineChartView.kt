@@ -23,6 +23,9 @@ class LineChartView @JvmOverloads constructor(context: Context, attrs: Attribute
         set(v) { field = v; invalidate() }
     var labels: List<String> = emptyList()
         set(v) { field = v; invalidate() }
+    /** Second label row (e.g. month at a month start); empty strings draw nothing. */
+    var subLabels: List<String> = emptyList()
+        set(v) { field = v; invalidate() }
     var selected = -1
         set(v) { field = v; invalidate() }
     var selectable = false
@@ -46,9 +49,13 @@ class LineChartView @JvmOverloads constructor(context: Context, attrs: Attribute
     private val area = Path()
     private var downX = 0f
 
-    private val padX get() = if (values.size <= 14) 14 * d else 2 * d
-    private val topPad get() = if (values.size <= 14) 20 * d else 4 * d
-    private val labelH get() = if (labels.isEmpty()) 0f else 16 * d
+    /** Dots + labels per point; default for short series, forced for scrollable day charts. */
+    var dotsAlways = false
+        set(v) { field = v; invalidate() }
+    private val dotsVisible get() = dotsAlways || values.size <= 14
+    private val padX get() = if (dotsVisible) 14 * d else 2 * d
+    private val topPad get() = if (dotsVisible) 20 * d else 4 * d
+    private val labelH get() = (if (labels.isEmpty()) 0f else 16 * d) + (if (subLabels.any { it.isNotEmpty() }) 13 * d else 0f)
 
     private fun x(i: Int): Float {
         val n = values.size
@@ -83,14 +90,17 @@ class LineChartView @JvmOverloads constructor(context: Context, attrs: Attribute
         c.drawPath(area, fill)
         c.drawPath(path, line)
 
-        if (n <= 14) {
+        if (dotsVisible) {
             for (i in 0 until n) {
                 val px = x(i); val py = y(values[i], max)
                 val r = if (i == selected) 6 * d else 4 * d
                 if (i == selected) c.drawLine(px, py, px, baseY, guide)
                 c.drawCircle(px, py, r, dotFill)
                 c.drawCircle(px, py, r, dotStroke)
-                if (i < labels.size) c.drawText(labels[i], px, height - 3 * d, label)
+                val sub = subLabels.getOrNull(i).orEmpty()
+                val subH = if (subLabels.any { it.isNotEmpty() }) 13 * d else 0f
+                if (i < labels.size) c.drawText(labels[i], px, height - 3 * d - subH, label)
+                if (sub.isNotEmpty()) c.drawText(sub, px, height - 3 * d, label)
                 if (i == selected) c.drawText(valueText(values[i]), px, py - 10 * d, valueLabel)
             }
         } else {

@@ -29,7 +29,7 @@ class HistoryActivity : AppCompatActivity() {
     private var shown: List<Run> = emptyList()
     private var badges: Map<Long, List<Records.Kind>> = emptyMap()
     private val adapter = RunAdapter()
-    private val dayStarts = LongArray(7)
+    private var dayStarts = LongArray(0)
     private var selectedDay = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +49,7 @@ class HistoryActivity : AppCompatActivity() {
             override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) = deleteWithUndo(shown[vh.bindingAdapterPosition])
         }).attachToRecyclerView(b.list)
         b.weekChart.selectable = true
+        b.weekChart.dotsAlways = true
         b.weekChart.valueText = { Fmt.km2(it.toDouble()) }
         b.weekChart.onSelect = { i -> selectedDay = i; renderList() }
         reload()
@@ -66,30 +67,51 @@ class HistoryActivity : AppCompatActivity() {
         renderList()
     }
 
-    /** km per day, last 7 days, today rightmost. Tapping a point filters the list to that day. */
+    /**
+     * km per day from the first run (at least 4 weeks) to today, today rightmost, horizontally scrollable.
+     * Tapping a point filters the list to that day.
+     */
     private fun renderWeek() {
-        val cal = Calendar.getInstance().apply {
+        val today = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            add(Calendar.DAY_OF_MONTH, -6)
         }
-        val fmt = SimpleDateFormat("EEE", Locale.GERMANY)
-        val values = FloatArray(7)
-        val labels = ArrayList<String>(7)
-        repeat(7) { i ->
-            dayStarts[i] = cal.timeInMillis
+        val first = Calendar.getInstance().apply {
+            timeInMillis = minOf(all.minOfOrNull { it.startMs } ?: today.timeInMillis, today.timeInMillis - 27L * 86_400_000)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val days = ArrayList<Long>()
+        val cal = first.clone() as Calendar
+        while (cal.timeInMillis <= today.timeInMillis) {
+            days += cal.timeInMillis
             cal.add(Calendar.DAY_OF_MONTH, 1)
-            values[i] = all.filter { it.startMs in dayStarts[i] until cal.timeInMillis }.sumOf { it.distanceKm }.toFloat()
-            labels += fmt.format(Date(dayStarts[i])).trimEnd('.')
         }
+        dayStarts = days.toLongArray()
+        val n = dayStarts.size
+        val dayFmt = SimpleDateFormat("EEE d", Locale.GERMANY)
+        val monthFmt = SimpleDateFormat("MMM", Locale.GERMANY)
+        val values = FloatArray(n)
+        val labels = ArrayList<String>(n)
+        val subs = ArrayList<String>(n)
+        for (i in 0 until n) {
+            val to = if (i + 1 < n) dayStarts[i + 1] else Long.MAX_VALUE
+            values[i] = all.filter { it.startMs in dayStarts[i] until to }.sumOf { it.distanceKm }.toFloat()
+            val c = Calendar.getInstance().apply { timeInMillis = dayStarts[i] }
+            labels += dayFmt.format(c.time).replace(".", "")
+            subs += if (i == 0 || c.get(Calendar.DAY_OF_MONTH) == 1) monthFmt.format(c.time).trimEnd('.') else ""
+        }
+        val density = resources.displayMetrics.density
+        b.weekChart.layoutParams = b.weekChart.layoutParams.apply { width = (n * DAY_WIDTH_DP * density).toInt() }
         b.weekChart.values = values
         b.weekChart.labels = labels
+        b.weekChart.subLabels = subs
         b.weekChart.selected = selectedDay
+        b.dayScroll.post { b.dayScroll.fullScroll(View.FOCUS_RIGHT) }
     }
 
     private fun renderList() {
-        shown = if (selectedDay < 0) all else {
+        shown = if (selectedDay < 0 || selectedDay >= dayStarts.size) all else {
             val from = dayStarts[selectedDay]
-            val to = if (selectedDay < 6) dayStarts[selectedDay + 1] else Long.MAX_VALUE
+            val to = if (selectedDay + 1 < dayStarts.size) dayStarts[selectedDay + 1] else Long.MAX_VALUE
             all.filter { it.startMs in from until to }
         }
         adapter.notifyDataSetChanged()
@@ -97,7 +119,7 @@ class HistoryActivity : AppCompatActivity() {
         val totals = if (shown.isEmpty()) getString(R.string.week_empty) else resources.getQuantityString(
             R.plurals.history_totals, shown.size, shown.size, Fmt.km2(shown.sumOf { it.distanceKm }), Fmt.minutes(shown.sumOf { it.durationS }.toDouble())
         )
-        val prefix = if (selectedDay < 0) "" else SimpleDateFormat("EEE, d. MMM", Locale.GERMANY).format(Date(dayStarts[selectedDay])) + " · "
+        val prefix = if (selectedDay < 0 || selectedDay >= dayStarts.size) "" else SimpleDateFormat("EEE, d. MMM", Locale.GERMANY).format(Date(dayStarts[selectedDay])) + " · "
         b.tvTotals.text = if (all.isEmpty()) "" else prefix + totals
     }
 
@@ -126,6 +148,10 @@ class HistoryActivity : AppCompatActivity() {
         Snackbar.make(b.root, R.string.run_deleted, Snackbar.LENGTH_LONG)
             .setAction(R.string.undo) { store.add(run); reload() }
             .show()
+    }
+
+    private companion object {
+        const val DAY_WIDTH_DP = 48
     }
 
     private inner class RunAdapter : RecyclerView.Adapter<RunAdapter.VH>() {
