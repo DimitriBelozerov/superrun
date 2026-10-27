@@ -19,7 +19,16 @@ import android.util.Log
 
 /** Single-connection BLE client for a PitPat-T01 (FBA0). All listener callbacks run on the main thread. */
 @SuppressLint("MissingPermission")
-class TreadmillBle(private val context: Context, private val listener: Listener) {
+class TreadmillBle(private val context: Context) {
+
+    var listener: Listener? = null
+        set(v) {
+            field = v
+            v?.onConnectionChanged(state, null)
+            lastStatus?.let { v?.onStatus(it) }
+        }
+    var lastStatus: PitPatProtocol.Status? = null
+        private set
 
     enum class ConnState { DISCONNECTED, SCANNING, CONNECTING, CONNECTED }
 
@@ -50,7 +59,8 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
 
     private fun setState(s: ConnState, msg: String? = null) {
         state = s
-        main.post { listener.onConnectionChanged(s, msg) }
+        if (s != ConnState.CONNECTED) lastStatus = null
+        main.post { listener?.onConnectionChanged(s, msg) }
     }
 
     /** Connect directly to a known address, or scan for a treadmill. */
@@ -258,7 +268,10 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
             Log.w(TAG, "short packet (${value.size}): ${PitPatProtocol.toHex(value)}")
             return
         }
-        main.post { listener.onStatus(status) }
+        main.post {
+            lastStatus = status
+            listener?.onStatus(status)
+        }
     }
 
     companion object {

@@ -1,66 +1,187 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:layout_height="match_parent">
 
-    <LinearLayout
+    <!-- Vorbereiten -->
+    <ScrollView
+        android:id="@+id/screenPrepare"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="24dp"
-        android:paddingVertical="16dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvConnection"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="8dp"
+                    android:text="@string/state_scanning"
+                    android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnHistory"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/history" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/SectionLabel"
+                android:text="@string/goal" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/goalChips"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:singleLine="true"
+                    app:singleSelection="true" />
+            </HorizontalScrollView>
+
+            <TextView
+                style="@style/SectionLabel"
+                android:text="@string/speed" />
+
+            <de.dimitri.pitpatlite.SpeedRailView
+                android:id="@+id/railPrepare"
+                android:layout_width="match_parent"
+                android:layout_height="86dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardWeek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:alpha="0.7"
+                        android:letterSpacing="0.08"
+                        android:text="@string/this_week"
+                        android:textAllCaps="true"
+                        android:textAppearance="?attr/textAppearanceLabelMedium" />
+
+                    <TextView
+                        android:id="@+id/tvWeek"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAppearance="?attr/textAppearanceTitleLarge"
+                        tools:text="3 Läufe · 6,20 km · 1 h 12 min" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStart"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginTop="24dp"
+                android:textSize="18sp"
+                tools:text="Start · 30 min · 4,0 km/h" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Lauf -->
+    <LinearLayout
+        android:id="@+id/screenRun"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/tvConnection"
+                android:id="@+id/tvRunLeft"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/state_disconnected"
-                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                tools:text="12:30 von 30:00" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnConnect"
-                style="@style/Widget.Material3.Button.TonalButton"
+            <TextView
+                android:id="@+id/tvRunRight"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/connect" />
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                tools:text="0,83 km" />
         </LinearLayout>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="invisible"
+            app:trackCornerRadius="3dp"
+            app:trackThickness="6dp" />
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/tvSpeed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
             android:gravity="center"
             android:includeFontPadding="false"
-            android:textSize="80sp"
+            android:textSize="112sp"
             android:textStyle="bold"
-            tools:text="0,0" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="@string/speed_unit"
-            android:textAppearance="?attr/textAppearanceLabelMedium" />
+            tools:text="4,0" />
 
         <TextView
             android:id="@+id/tvBeltState"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:gravity="center"
-            android:text="@string/belt_unknown"
-            android:textAppearance="?attr/textAppearanceTitleMedium" />
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            tools:text="km/h · Läuft" />
 
         <TextView
             android:id="@+id/tvLock"
@@ -77,60 +198,17 @@
             android:id="@+id/rail"
             android:layout_width="match_parent"
             android:layout_height="86dp"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="8dp" />
 
-        <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/progress"
+        <TextView
+            android:id="@+id/tvRunStats"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:visibility="gone"
-            app:trackCornerRadius="4dp"
-            app:trackThickness="8dp" />
-
-        <TextView
-            android:id="@+id/tvProgress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:alpha="0.7"
             android:gravity="center"
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:visibility="gone"
-            tools:text="12:30 von 30:00" />
-
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:columnCount="4">
-
-            <TextView android:id="@+id/tvDistance" style="@style/Stat" tools:text="1,20 km" />
-            <TextView android:id="@+id/tvDuration" style="@style/Stat" tools:text="12:30" />
-            <TextView android:id="@+id/tvSteps" style="@style/Stat" tools:text="1.430" />
-            <TextView android:id="@+id/tvCalories" style="@style/Stat" tools:text="48" />
-
-            <TextView style="@style/StatLabel" android:text="@string/distance" />
-            <TextView style="@style/StatLabel" android:text="@string/duration" />
-            <TextView style="@style/StatLabel" android:text="@string/steps" />
-            <TextView style="@style/StatLabel" android:text="@string/calories" />
-        </GridLayout>
-
-        <TextView
-            style="@style/SectionLabel"
-            android:text="@string/goal" />
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none">
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/goalChips"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:singleLine="true"
-                app:singleSelection="true" />
-        </HorizontalScrollView>
+            tools:text="1.430 Schritte · 48 kcal" />
 
         <LinearLayout
             android:id="@+id/rowIncline"
@@ -170,61 +248,33 @@
                 android:text="+" />
         </LinearLayout>
 
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
             android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnStart"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1.4"
-                tools:text="Start · 2,0 km/h" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnPause"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_marginStart="8dp"
+                android:layout_height="64dp"
                 android:layout_weight="1"
                 android:text="@string/pause" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnStop"
                 android:layout_width="0dp"
-                android:layout_height="60dp"
+                android:layout_height="64dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:backgroundTint="@color/stop"
                 android:text="@string/stop"
                 android:textColor="@android:color/white" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnHistory"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/history" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnMute"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/mute" />
         </LinearLayout>
 
         <TextView
@@ -237,4 +287,4 @@
             android:textSize="10sp"
             android:visibility="gone" />
     </LinearLayout>
-</ScrollView>
+</FrameLayout>

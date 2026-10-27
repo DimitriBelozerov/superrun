@@ -31,6 +31,16 @@ class HistoryActivity : AppCompatActivity() {
             insets
         }
         b.btnBack.setOnClickListener { finish() }
+        val ble = (application as App).ble
+        b.btnMute.setOnClickListener {
+            val on = ble.lastStatus?.buzzerOn
+            ble.send(if (on == false) PitPatProtocol.SOUND_ON else PitPatProtocol.SOUND_OFF)
+            b.btnMute.text = getString(if (on == false) R.string.mute else R.string.unmute)
+        }
+        ble.lastStatus?.buzzerOn?.let {
+            b.btnMute.visibility = View.VISIBLE
+            b.btnMute.text = getString(if (it) R.string.mute else R.string.unmute)
+        }
         b.list.layoutManager = LinearLayoutManager(this)
         b.list.adapter = adapter
         reload()

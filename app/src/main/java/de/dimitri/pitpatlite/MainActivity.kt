@@ -27,13 +27,14 @@ import de.dimitri.pitpatlite.PitPatProtocol.BeltState
 import de.dimitri.pitpatlite.databinding.ActivityMainBinding
 import de.dimitri.pitpatlite.databinding.DialogGoalBinding
 import java.io.File
+import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.Listener {
 
     private lateinit var b: ActivityMainBinding
-    private lateinit var ble: TreadmillBle
+    private val ble: TreadmillBle get() = (application as App).ble
     private val prefs by lazy { getSharedPreferences("pitpat", MODE_PRIVATE) }
     private val runStore by lazy { RunStore(File(filesDir, "runs.json")) }
     private val tracker = SessionTracker()
@@ -44,10 +45,12 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     private var maxKph = DEFAULT_MAX_KPH
     private var maxIncline = 0
     private var last: PitPatProtocol.Status? = null
-    private var buzzerOn: Boolean? = null
     private var customGoals: List<Goal> = emptyList()
     private var selectedGoal: Goal? = null
-    private var runCount = 0
+    private var permissionAsked = false
+
+    private val rails get() = listOf(b.railPrepare, b.rail)
+    private val activeRail: SpeedRailView get() = if (b.screenRun.visibility == View.VISIBLE) b.rail else b.railPrepare
 
     // Rail lock: belt catching up after a full-km/h snap.
     private var lockTarget = 0.0
@@ -73,7 +76,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     }
 
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
-        if (r.values.all { it }) startConnect() else toast(getString(R.string.perm_denied))
+        if (r.values.all { it }) startConnect() else b.tvConnection.text = getString(R.string.perm_denied)
     }
     private val enableBtLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (ble.isBluetoothOn) startConnect()
@@ -88,21 +91,20 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
-        ble = TreadmillBle(applicationContext, this)
 
         targetKph = prefs.getFloat("target", 2.0f).toDouble()
         customGoals = Goal.listFromJson(prefs.getString("goals", null))
         selectedGoal = prefs.getString("goal", null)?.let { s -> runCatching { Goal.fromJson(org.json.JSONObject(s), custom = false) }.getOrNull() }
         tracker.goal = selectedGoal
 
-        b.rail.listener = this
-        b.rail.minKph = MIN_KPH
-        b.rail.maxKph = maxKph
-        b.rail.value = targetKph
-
-        b.btnConnect.setOnClickListener {
-            if (ble.state == TreadmillBle.ConnState.DISCONNECTED) ensurePermissionsThenConnect() else ble.disconnect()
+        rails.forEach { r ->
+            r.listener = this
+            r.minKph = MIN_KPH
+            r.maxKph = maxKph
+            r.value = targetKph
         }
+
+        b.tvConnection.setOnClickListener { if (ble.state == TreadmillBle.ConnState.DISCONNECTED) ensurePermissionsThenConnect() }
         b.tvConnection.setOnLongClickListener {
             b.tvDebug.visibility = if (b.tvDebug.visibility == View.VISIBLE) View.GONE else View.VISIBLE; true
         }
@@ -111,28 +113,37 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         b.btnStart.setOnClickListener { ble.send(PitPatProtocol.start(targetKph, targetIncline)) }
         b.btnPause.setOnClickListener { ble.send(PitPatProtocol.pause()) }
         b.btnStop.setOnClickListener { ble.send(PitPatProtocol.stop()) }
-        b.btnMute.setOnClickListener {
-            ble.send(if (buzzerOn == false) PitPatProtocol.SOUND_ON else PitPatProtocol.SOUND_OFF)
-        }
-        b.btnHistory.setOnClickListener { startActivity(Intent(this, HistoryActivity::class.java)) }
+        val openHistory = View.OnClickListener { startActivity(Intent(this, HistoryActivity::class.java)) }
+        b.btnHistory.setOnClickListener(openHistory)
+        b.cardWeek.setOnClickListener(openHistory)
 
         buildGoalChips()
         renderTarget()
         renderIncline()
         renderGoal()
-        onConnectionChanged(TreadmillBle.ConnState.DISCONNECTED, null)
+        renderStatus(null)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ble.listener = this
+        if (ble.state == TreadmillBle.ConnState.DISCONNECTED) ensurePermissionsThenConnect(auto = true)
     }
 
     override fun onResume() {
         super.onResume()
-        runCount = runStore.load().size
-        renderHistoryButton()
+        renderWeek()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (ble.listener === this) ble.listener = null
     }
 
     override fun onDestroy() {
         super.onDestroy()
         main.removeCallbacksAndMessages(null)
-        ble.disconnect()
+        if (isFinishing) ble.disconnect()
     }
 
     // --- connection ---
@@ -141,9 +152,13 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
 
-    private fun ensurePermissionsThenConnect() {
+    private fun ensurePermissionsThenConnect(auto: Boolean = false) {
         val missing = requiredPermissions().filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) permissionLauncher.launch(missing.toTypedArray()) else startConnect()
+        when {
+            missing.isEmpty() -> startConnect()
+            auto && permissionAsked -> b.tvConnection.text = getString(R.string.perm_denied)
+            else -> { permissionAsked = true; permissionLauncher.launch(missing.toTypedArray()) }
+        }
     }
 
     private fun startConnect() {
@@ -160,9 +175,8 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
             TreadmillBle.ConnState.DISCONNECTED -> getString(R.string.state_disconnected)
             TreadmillBle.ConnState.SCANNING -> getString(R.string.state_scanning)
             TreadmillBle.ConnState.CONNECTING -> getString(R.string.state_connecting)
-            TreadmillBle.ConnState.CONNECTED -> getString(R.string.state_connected)
+            TreadmillBle.ConnState.CONNECTED -> getString(R.string.state_dot_connected)
         }
-        b.btnConnect.text = getString(if (state == TreadmillBle.ConnState.DISCONNECTED) R.string.connect else R.string.disconnect)
         if (connected) {
             ble.address?.let { prefs.edit().putString("address", it).apply() }
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -172,11 +186,10 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
                 prefs.edit().remove("address").apply()
             }
             last = null
-            buzzerOn = null
             endLock()
             renderStatus(null)
         }
-        setControlsEnabled(connected)
+        b.btnStart.isEnabled = connected
     }
 
     // --- status ---
@@ -185,14 +198,13 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         last = status
         if (status.maxKph > 0.5 && status.maxKph != maxKph) {
             maxKph = status.maxKph
-            b.rail.maxKph = maxKph
+            rails.forEach { it.maxKph = maxKph }
         }
         maxIncline = status.maxIncline
-        status.buzzerOn?.let { buzzerOn = it }
         if (!b.rail.isDragging && !b.rail.locked) {
             if (status.state == BeltState.RUNNING && status.targetKph > 0 && abs(status.targetKph - targetKph) >= 0.05) {
                 targetKph = status.targetKph
-                b.rail.value = targetKph
+                rails.forEach { it.value = targetKph }
                 renderTarget()
             }
             if (!inclineSendPending) {
@@ -210,8 +222,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
                 }
                 is SessionTracker.Event.Finished -> {
                     runStore.add(event.run)
-                    runCount++
-                    renderHistoryButton()
+                    renderWeek()
                     toast(getString(R.string.run_saved, Fmt.km2(event.run.distanceKm), Fmt.clock(event.run.durationS.toDouble())))
                 }
             }
@@ -220,24 +231,27 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     }
 
     private fun renderStatus(s: PitPatProtocol.Status?) {
+        val running = s != null && s.state != BeltState.STOPPED && s.state != BeltState.UNKNOWN
+        if (running != (b.screenRun.visibility == View.VISIBLE)) {
+            b.screenRun.visibility = if (running) View.VISIBLE else View.GONE
+            b.screenPrepare.visibility = if (running) View.GONE else View.VISIBLE
+            rails.forEach { it.value = targetKph }
+        }
         renderBigSpeed()
-        b.tvBeltState.text = when (s?.state) {
-            BeltState.STOPPED -> getString(R.string.belt_stopped)
+        val stateText = when (s?.state) {
             BeltState.RUNNING -> getString(R.string.belt_running)
             BeltState.PAUSED -> getString(R.string.belt_paused)
             BeltState.STARTING -> getString(R.string.belt_starting)
-            else -> getString(R.string.belt_unknown)
+            else -> getString(R.string.belt_stopped)
         } + if (s?.checksumOk == false) " ⚠" else ""
+        b.tvBeltState.text = getString(R.string.unit_state, stateText)
         val p = tracker.progress
-        val showSession = s != null && (tracker.active || p.durationS > 0)
-        b.tvDistance.text = if (showSession) Fmt.km2(p.distanceKm) else "–"
-        b.tvDuration.text = if (showSession) Fmt.clock(p.durationS) else "–"
-        b.tvSteps.text = if (showSession) p.steps.toString() else "–"
-        b.tvCalories.text = if (showSession) p.calories.toString() else "–"
+        val g = selectedGoal
+        b.tvRunLeft.text = g?.progressText(p.durationS, p.distanceKm)?.takeIf { g.type == Goal.Type.TIME } ?: Fmt.clock(p.durationS)
+        b.tvRunRight.text = g?.progressText(p.durationS, p.distanceKm)?.takeIf { g.type == Goal.Type.DISTANCE } ?: Fmt.km2(p.distanceKm)
+        b.tvRunStats.text = getString(R.string.run_stats, p.steps.toInt(), p.calories)
         b.rowIncline.visibility = if (maxIncline > 0) View.VISIBLE else View.GONE
         b.tvIncline.text = if (s != null && s.incline != targetIncline) "${s.incline}→$targetIncline" else "$targetIncline"
-        b.btnMute.text = getString(if (buzzerOn == false) R.string.unmute else R.string.mute)
-        b.btnMute.visibility = if (buzzerOn == null && s != null) View.GONE else View.VISIBLE
         b.tvDebug.text = s?.let { "fw ${it.firmware}  max ${Fmt.kph(it.maxKph)}  ${PitPatProtocol.toHex(it.raw)}" } ?: ""
         renderGoalProgress()
     }
@@ -246,17 +260,21 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     private fun renderBigSpeed() {
         val handling = b.rail.isDragging || b.rail.locked
         b.tvSpeed.text = Fmt.kph(if (handling) targetKph else last?.currentKph ?: 0.0)
-        b.tvSpeed.setTextColor(
-            if (handling) getColor(R.color.lock) else b.tvBeltState.currentTextColor
+        b.tvSpeed.setTextColor(if (handling) getColor(R.color.lock) else b.tvBeltState.currentTextColor)
+    }
+
+    private fun renderWeek() {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            val back = (get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+            add(Calendar.DAY_OF_MONTH, -back)
+        }
+        val runs = runStore.load()
+        val week = runs.filter { it.startMs >= cal.timeInMillis }
+        b.tvWeek.text = if (week.isEmpty()) getString(R.string.week_empty) else getString(
+            R.string.week_summary, week.size, Fmt.km2(week.sumOf { it.distanceKm }), Fmt.minutes(week.sumOf { it.durationS }.toDouble())
         )
-    }
-
-    private fun setControlsEnabled(enabled: Boolean) {
-        listOf(b.btnStart, b.btnPause, b.btnStop, b.btnMute, b.btnInclineMinus, b.btnInclinePlus).forEach { it.isEnabled = enabled }
-    }
-
-    private fun renderHistoryButton() {
-        b.btnHistory.text = if (runCount > 0) getString(R.string.history_count, runCount) else getString(R.string.history)
+        b.btnHistory.text = if (runs.isEmpty()) getString(R.string.history) else getString(R.string.history_count, runs.size)
     }
 
     // --- rail ---
@@ -272,7 +290,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     override fun onSnapped(full: Double) {
         targetKph = full
         prefs.edit().putFloat("target", targetKph.toFloat()).apply()
-        if (!isMoving()) return
+        if (!isMoving() || activeRail !== b.rail) return
         ble.send(PitPatProtocol.setSpeed(full, targetIncline))
         lockTarget = full
         lockStartedAt = SystemClock.elapsedRealtime()
@@ -287,6 +305,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     override fun onReleased(value: Double) {
         targetKph = value
         prefs.edit().putFloat("target", targetKph.toFloat()).apply()
+        rails.forEach { if (it !== activeRail) it.value = value }
         if (isMoving()) ble.send(PitPatProtocol.setSpeed(value, targetIncline))
         renderBigSpeed()
     }
@@ -306,7 +325,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
 
     private fun setTarget(kph: Double) {
         targetKph = kph.coerceIn(MIN_KPH, maxKph)
-        b.rail.value = targetKph
+        rails.forEach { it.value = targetKph }
         renderTarget()
         prefs.edit().putFloat("target", targetKph.toFloat()).apply()
         if (isMoving()) ble.send(PitPatProtocol.setSpeed(targetKph, targetIncline))
@@ -321,7 +340,8 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     }
 
     private fun renderTarget() {
-        b.btnStart.text = getString(R.string.start_at, Fmt.kph(targetKph))
+        val g = selectedGoal
+        b.btnStart.text = if (g == null) getString(R.string.start_at, Fmt.kph(targetKph)) else getString(R.string.start_goal, g.label, Fmt.kph(targetKph))
     }
 
     private fun renderIncline() {
@@ -357,6 +377,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         tracker.goal = goal
         prefs.edit().apply { if (goal == null) remove("goal") else putString("goal", goal.toJson().toString()) }.apply()
         goal?.speedKph?.let { setTarget(it) }
+        renderTarget()
         renderGoal()
     }
 
@@ -371,16 +392,10 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
 
     private fun renderGoalProgress() {
         val g = selectedGoal
-        if (g == null) {
-            b.progress.visibility = View.GONE
-            b.tvProgress.visibility = View.GONE
-            return
-        }
+        b.progress.visibility = if (g == null) View.INVISIBLE else View.VISIBLE
+        if (g == null) return
         val p = tracker.progress
-        b.progress.visibility = View.VISIBLE
-        b.tvProgress.visibility = View.VISIBLE
         b.progress.progress = (g.progress(p.durationS, p.distanceKm) * 100).roundToInt()
-        b.tvProgress.text = if (tracker.active || p.durationS > 0) g.progressText(p.durationS, p.distanceKm) else getString(R.string.goal_label, g.label)
     }
 
     private fun showGoalDialog() {
