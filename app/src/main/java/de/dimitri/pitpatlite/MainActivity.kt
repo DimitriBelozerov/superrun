@@ -132,10 +132,15 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         if (status.maxKph > 0.5) maxKph = status.maxKph
         maxIncline = status.maxIncline
         status.buzzerOn?.let { buzzerOn = it }
-        if (status.state == BeltState.RUNNING && status.targetKph > 0 && !speedSendPending) {
-            // Mirror a target set on the treadmill itself (remote / buttons).
-            targetKph = status.targetKph
-            renderTarget()
+        if (!speedSendPending) {
+            // Mirror targets set on the treadmill itself (remote / buttons), so a speed command
+            // never resends a stale incline and pulls the deck back to 0.
+            if (status.state == BeltState.RUNNING && status.targetKph > 0) {
+                targetKph = status.targetKph
+                renderTarget()
+            }
+            targetIncline = status.targetIncline.coerceIn(0, maxIncline)
+            renderIncline()
         }
         renderStatus(status)
     }
@@ -154,7 +159,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         b.tvSteps.text = s?.steps?.toString() ?: "–"
         b.tvCalories.text = s?.calories?.toString() ?: "–"
         b.rowIncline.visibility = if (maxIncline > 0) View.VISIBLE else View.GONE
-        b.tvIncline.text = s?.let { "${it.incline}" } ?: "$targetIncline"
+        b.tvIncline.text = if (s != null && s.incline != targetIncline) "${s.incline}→$targetIncline" else "$targetIncline"
         b.btnMute.text = getString(if (buzzerOn == false) R.string.unmute else R.string.mute)
         b.btnMute.visibility = if (buzzerOn == null && s != null) View.GONE else View.VISIBLE
         b.tvDebug.text = s?.let { "fw ${it.firmware}  max ${fmtSpeed(it.maxKph)}  ${PitPatProtocol.toHex(it.raw)}" } ?: ""
