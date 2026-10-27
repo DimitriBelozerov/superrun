@@ -9,12 +9,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.View
 import android.view.WindowManager
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -22,15 +22,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import de.dimitri.pitpatlite.PitPatProtocol.BeltState
 import de.dimitri.pitpatlite.databinding.ActivityMainBinding
 import de.dimitri.pitpatlite.databinding.DialogGoalBinding
 import java.io.File
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
-class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
+class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.Listener {
 
     private lateinit var b: ActivityMainBinding
     private lateinit var ble: TreadmillBle
@@ -49,9 +49,26 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
     private var selectedGoal: Goal? = null
     private var runCount = 0
 
-    private var speedSendPending = false
-    private val sendSpeedRunnable = Runnable {
-        speedSendPending = false
+    // Rail lock: belt catching up after a full-km/h snap.
+    private var lockTarget = 0.0
+    private var lockStartedAt = 0L
+    private val lockTick = object : Runnable {
+        override fun run() {
+            if (!b.rail.locked) return
+            val elapsed = SystemClock.elapsedRealtime() - lockStartedAt
+            val caughtUp = last?.let { abs(it.currentKph - lockTarget) <= LOCK_TOLERANCE } == true
+            if (caughtUp || elapsed >= LOCK_MAX_MS || !isMoving()) {
+                endLock()
+            } else {
+                renderLockDots(elapsed)
+                main.postDelayed(this, LOCK_TICK_MS)
+            }
+        }
+    }
+
+    private var inclineSendPending = false
+    private val sendInclineRunnable = Runnable {
+        inclineSendPending = false
         if (isMoving()) ble.send(PitPatProtocol.setSpeed(targetKph, targetIncline))
     }
 
@@ -78,16 +95,17 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         selectedGoal = prefs.getString("goal", null)?.let { s -> runCatching { Goal.fromJson(org.json.JSONObject(s), custom = false) }.getOrNull() }
         tracker.goal = selectedGoal
 
+        b.rail.listener = this
+        b.rail.minKph = MIN_KPH
+        b.rail.maxKph = maxKph
+        b.rail.value = targetKph
+
         b.btnConnect.setOnClickListener {
             if (ble.state == TreadmillBle.ConnState.DISCONNECTED) ensurePermissionsThenConnect() else ble.disconnect()
         }
         b.tvConnection.setOnLongClickListener {
             b.tvDebug.visibility = if (b.tvDebug.visibility == View.VISIBLE) View.GONE else View.VISIBLE; true
         }
-        b.btnSpeedMinus05.setOnClickListener { adjustSpeed(-0.5) }
-        b.btnSpeedMinus01.setOnClickListener { adjustSpeed(-0.1) }
-        b.btnSpeedPlus01.setOnClickListener { adjustSpeed(0.1) }
-        b.btnSpeedPlus05.setOnClickListener { adjustSpeed(0.5) }
         b.btnInclineMinus.setOnClickListener { adjustIncline(-1) }
         b.btnInclinePlus.setOnClickListener { adjustIncline(1) }
         b.btnStart.setOnClickListener { ble.send(PitPatProtocol.start(targetKph, targetIncline)) }
@@ -98,7 +116,6 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         }
         b.btnHistory.setOnClickListener { startActivity(Intent(this, HistoryActivity::class.java)) }
 
-        buildPresets()
         buildGoalChips()
         renderTarget()
         renderIncline()
@@ -156,6 +173,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
             }
             last = null
             buzzerOn = null
+            endLock()
             renderStatus(null)
         }
         setControlsEnabled(connected)
@@ -165,16 +183,22 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
 
     override fun onStatus(status: PitPatProtocol.Status) {
         last = status
-        if (status.maxKph > 0.5) maxKph = status.maxKph
+        if (status.maxKph > 0.5 && status.maxKph != maxKph) {
+            maxKph = status.maxKph
+            b.rail.maxKph = maxKph
+        }
         maxIncline = status.maxIncline
         status.buzzerOn?.let { buzzerOn = it }
-        if (!speedSendPending) {
-            if (status.state == BeltState.RUNNING && status.targetKph > 0) {
+        if (!b.rail.isDragging && !b.rail.locked) {
+            if (status.state == BeltState.RUNNING && status.targetKph > 0 && abs(status.targetKph - targetKph) >= 0.05) {
                 targetKph = status.targetKph
+                b.rail.value = targetKph
                 renderTarget()
             }
-            targetIncline = status.targetIncline.coerceIn(0, maxIncline)
-            renderIncline()
+            if (!inclineSendPending) {
+                targetIncline = status.targetIncline.coerceIn(0, maxIncline)
+                renderIncline()
+            }
         }
         for (event in tracker.onStatus(status)) {
             when (event) {
@@ -196,7 +220,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
     }
 
     private fun renderStatus(s: PitPatProtocol.Status?) {
-        b.tvSpeed.text = Fmt.kph(s?.currentKph ?: 0.0)
+        renderBigSpeed()
         b.tvBeltState.text = when (s?.state) {
             BeltState.STOPPED -> getString(R.string.belt_stopped)
             BeltState.RUNNING -> getString(R.string.belt_running)
@@ -218,6 +242,15 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         renderGoalProgress()
     }
 
+    /** Big number: belt speed; while dragging or locked the target, in lock color. */
+    private fun renderBigSpeed() {
+        val handling = b.rail.isDragging || b.rail.locked
+        b.tvSpeed.text = Fmt.kph(if (handling) targetKph else last?.currentKph ?: 0.0)
+        b.tvSpeed.setTextColor(
+            if (handling) getColor(R.color.lock) else b.tvBeltState.currentTextColor
+        )
+    }
+
     private fun setControlsEnabled(enabled: Boolean) {
         listOf(b.btnStart, b.btnPause, b.btnStop, b.btnMute, b.btnInclineMinus, b.btnInclinePlus).forEach { it.isEnabled = enabled }
     }
@@ -226,52 +259,73 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         b.btnHistory.text = if (runCount > 0) getString(R.string.history_count, runCount) else getString(R.string.history)
     }
 
-    // --- speed / incline ---
+    // --- rail ---
 
     private fun isMoving(): Boolean = last?.state == BeltState.RUNNING || last?.state == BeltState.STARTING
 
-    private fun adjustSpeed(delta: Double) = setTarget(((targetKph + delta) * 10).roundToInt() / 10.0)
+    override fun onValueChanged(value: Double) {
+        targetKph = value
+        renderTarget()
+        renderBigSpeed()
+    }
+
+    override fun onSnapped(full: Double) {
+        targetKph = full
+        prefs.edit().putFloat("target", targetKph.toFloat()).apply()
+        if (!isMoving()) return
+        ble.send(PitPatProtocol.setSpeed(full, targetIncline))
+        lockTarget = full
+        lockStartedAt = SystemClock.elapsedRealtime()
+        b.rail.lock()
+        renderLockDots(0)
+        b.tvLock.visibility = View.VISIBLE
+        main.removeCallbacks(lockTick)
+        main.postDelayed(lockTick, LOCK_TICK_MS)
+        renderBigSpeed()
+    }
+
+    override fun onReleased(value: Double) {
+        targetKph = value
+        prefs.edit().putFloat("target", targetKph.toFloat()).apply()
+        if (isMoving()) ble.send(PitPatProtocol.setSpeed(value, targetIncline))
+        renderBigSpeed()
+    }
+
+    private fun endLock() {
+        main.removeCallbacks(lockTick)
+        b.rail.unlock()
+        b.tvLock.visibility = View.INVISIBLE
+        renderBigSpeed()
+    }
+
+    private fun renderLockDots(elapsedMs: Long) {
+        val total = (LOCK_MAX_MS / 1000).toInt()
+        val left = (total - (elapsedMs / 1000).toInt()).coerceIn(0, total)
+        b.tvLock.text = buildString { repeat(left) { append('●') }; repeat(total - left) { append('○') } }
+    }
 
     private fun setTarget(kph: Double) {
         targetKph = kph.coerceIn(MIN_KPH, maxKph)
+        b.rail.value = targetKph
         renderTarget()
         prefs.edit().putFloat("target", targetKph.toFloat()).apply()
-        scheduleSpeedSend()
+        if (isMoving()) ble.send(PitPatProtocol.setSpeed(targetKph, targetIncline))
     }
 
     private fun adjustIncline(delta: Int) {
         targetIncline = (targetIncline + delta).coerceIn(0, maxIncline)
         renderIncline()
-        scheduleSpeedSend()
-    }
-
-    private fun scheduleSpeedSend() {
-        main.removeCallbacks(sendSpeedRunnable)
-        speedSendPending = false
-        if (isMoving()) {
-            speedSendPending = true
-            main.postDelayed(sendSpeedRunnable, SPEED_DEBOUNCE_MS)
-        }
+        main.removeCallbacks(sendInclineRunnable)
+        inclineSendPending = isMoving()
+        if (inclineSendPending) main.postDelayed(sendInclineRunnable, INCLINE_DEBOUNCE_MS)
     }
 
     private fun renderTarget() {
-        b.tvTarget.text = Fmt.kph(targetKph)
         b.btnStart.text = getString(R.string.start_at, Fmt.kph(targetKph))
     }
 
     private fun renderIncline() {
         b.tvIncline.text = "$targetIncline"
-    }
-
-    private fun buildPresets() {
-        b.rowPresets.removeAllViews()
-        PRESETS.forEach { kph ->
-            val btn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            btn.text = Fmt.kph(kph)
-            btn.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(4) }
-            btn.setOnClickListener { setTarget(kph) }
-            b.rowPresets.addView(btn)
-        }
     }
 
     // --- goals ---
@@ -292,7 +346,6 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         val chip = Chip(this).apply {
             text = goal?.label ?: getString(R.string.goal_free)
             isCheckable = true
-            isChecked = goal == selectedGoal?.copy(custom = goal?.custom ?: false)
             setOnClickListener { selectGoal(goal) }
             if (goal?.custom == true) setOnLongClickListener { confirmDeleteGoal(goal); true }
         }
@@ -308,8 +361,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
     }
 
     private fun renderGoal() {
-        val g = selectedGoal
-        val wanted = g?.label ?: getString(R.string.goal_free)
+        val wanted = selectedGoal?.label ?: getString(R.string.goal_free)
         for (i in 0 until b.goalChips.childCount) {
             val c = b.goalChips.getChildAt(i) as Chip
             if (c.isCheckable) c.isChecked = c.text == wanted
@@ -379,14 +431,15 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1))
     }
 
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
-
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     companion object {
         private const val MIN_KPH = 0.5
         private const val DEFAULT_MAX_KPH = 6.0
-        private const val SPEED_DEBOUNCE_MS = 400L
-        private val PRESETS = listOf(2.0, 3.0, 4.0, 5.0, 6.0)
+        private const val INCLINE_DEBOUNCE_MS = 400L
+        /** Rail stays locked after a full-km/h snap until the belt reports the target, at most this long. */
+        private const val LOCK_MAX_MS = 3000L
+        private const val LOCK_TOLERANCE = 0.1
+        private const val LOCK_TICK_MS = 200L
     }
 }

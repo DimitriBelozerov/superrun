@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="stop">#B3261E</color>
+    <color name="lock">#F2B84B</color>
+    <color name="on_lock">#3A2A00</color>
     <color name="primary">#1E6F5C</color>
     <color name="on_primary">#FFFFFF</color>
     <color name="primary_container">#A7F3D0</color>
