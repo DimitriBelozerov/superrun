@@ -177,6 +177,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
             TreadmillBle.ConnState.CONNECTING -> getString(R.string.state_connecting)
             TreadmillBle.ConnState.CONNECTED -> getString(R.string.state_dot_connected)
         }
+        b.tvConnection.setTextColor(if (connected) themeColor(com.google.android.material.R.attr.colorPrimary) else themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         if (connected) {
             ble.address?.let { prefs.edit().putString("address", it).apply() }
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -246,10 +247,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         } + if (s?.checksumOk == false) " ⚠" else ""
         b.tvBeltState.text = getString(R.string.unit_state, stateText)
         val p = tracker.progress
-        val g = selectedGoal
-        b.tvRunLeft.text = g?.progressText(p.durationS, p.distanceKm)?.takeIf { g.type == Goal.Type.TIME } ?: Fmt.clock(p.durationS)
-        b.tvRunRight.text = g?.progressText(p.durationS, p.distanceKm)?.takeIf { g.type == Goal.Type.DISTANCE } ?: Fmt.km2(p.distanceKm)
-        b.tvRunStats.text = getString(R.string.run_stats, p.steps.toInt(), p.calories)
+        b.tvRunStats.text = getString(R.string.run_stats, Fmt.km2(p.distanceKm), p.steps.toInt(), p.calories)
         b.rowIncline.visibility = if (maxIncline > 0) View.VISIBLE else View.GONE
         b.tvIncline.text = if (s != null && s.incline != targetIncline) "${s.incline}→$targetIncline" else "$targetIncline"
         b.tvDebug.text = s?.let { "fw ${it.firmware}  max ${Fmt.kph(it.maxKph)}  ${PitPatProtocol.toHex(it.raw)}" } ?: ""
@@ -390,18 +388,35 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         renderGoalProgress()
     }
 
+    /** Goal ring on the run screen: remaining value in the middle, the rest below. */
     private fun renderGoalProgress() {
         val g = selectedGoal
-        b.progress.visibility = if (g == null) View.INVISIBLE else View.VISIBLE
-        if (g == null) return
         val p = tracker.progress
-        b.progress.progress = (g.progress(p.durationS, p.distanceKm) * 100).roundToInt()
+        b.ring.active = g != null
+        if (g == null) {
+            b.ring.progress = 0f
+            b.tvGoalMain.text = Fmt.clock(p.durationS)
+            b.tvGoalSub.text = Fmt.km2(p.distanceKm)
+            b.tvGoalLabel.text = getString(R.string.goal_free)
+            return
+        }
+        b.ring.progress = g.progress(p.durationS, p.distanceKm).toFloat()
+        when (g.type) {
+            Goal.Type.TIME -> {
+                b.tvGoalMain.text = Fmt.clock((g.value * 60 - p.durationS).coerceAtLeast(0.0))
+                b.tvGoalSub.text = getString(R.string.goal_remaining_of, Fmt.clock(g.value * 60), Fmt.km2(p.distanceKm))
+            }
+            Goal.Type.DISTANCE -> {
+                b.tvGoalMain.text = Fmt.km2((g.value - p.distanceKm).coerceAtLeast(0.0))
+                b.tvGoalSub.text = getString(R.string.goal_remaining_of, Fmt.km2(g.value), Fmt.clock(p.durationS))
+            }
+        }
+        b.tvGoalLabel.text = getString(R.string.goal_label, g.label)
     }
 
     private fun showGoalDialog() {
         val d = DialogGoalBinding.inflate(layoutInflater)
         d.typeGroup.check(R.id.btnTypeTime)
-        d.etSpeed.setText(Fmt.kph(targetKph))
         AlertDialog.Builder(this)
             .setTitle(R.string.goal_new_title)
             .setView(d.root)
@@ -447,6 +462,12 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    private fun themeColor(attr: Int): Int {
+        val tv = android.util.TypedValue()
+        theme.resolveAttribute(attr, tv, true)
+        return if (tv.resourceId != 0) getColor(tv.resourceId) else tv.data
+    }
 
     companion object {
         private const val MIN_KPH = 0.5

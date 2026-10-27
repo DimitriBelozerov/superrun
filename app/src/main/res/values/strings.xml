@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PitPat Lite</string>
+    <string name="app_name">SuperRun</string>
+    <string name="goal_remaining_of">von %1$s · %2$s</string>
+    <string name="goal_free_sub">Frei · %1$s</string>
+    <string name="run_deleted">Lauf gelöscht</string>
+    <string name="undo">Rückgängig</string>
+    <string name="all_days">Alle Tage</string>
     <string name="connect">Verbinden</string>
     <string name="disconnect">Trennen</string>
     <string name="state_disconnected">Nicht verbunden · tippen</string>
@@ -12,7 +17,7 @@
     </plurals>
     <string name="week_empty">Noch kein Lauf diese Woche</string>
     <string name="start_goal">Start · %1$s · %2$s km/h</string>
-    <string name="run_stats">%1$d Schritte · %2$d kcal</string>
+    <string name="run_stats">%1$s · %2$d Schritte · %3$d kcal</string>
     <string name="unit_state">km/h · %1$s</string>
     <string name="state_scanning">Suche Laufband…</string>
     <string name="state_connecting">Verbinde…</string>

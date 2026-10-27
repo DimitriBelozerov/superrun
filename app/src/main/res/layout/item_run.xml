@@ -49,11 +49,11 @@
             android:visibility="gone"
             tools:text="PB Strecke · Zeit" />
 
-        <de.dimitri.pitpatlite.BarsView
-            android:id="@+id/bars"
+        <de.dimitri.pitpatlite.LineChartView
+            android:id="@+id/chart"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="8dp" />
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp" />
 
         <GridLayout
             android:layout_width="match_parent"

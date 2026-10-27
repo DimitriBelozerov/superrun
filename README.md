@@ -1,4 +1,4 @@
-# PitPat Lite
+# SuperRun (PitPat Lite)
 
 Minimal Android app for PitPat-T01 walking pads (Superun / DeerRun, BLE service `0xFBA0`).
 No account, no cloud, no reminders: connect, start/pause/stop, speed, incline, live stats, mute.

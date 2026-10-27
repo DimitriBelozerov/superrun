@@ -131,35 +131,68 @@
         android:paddingVertical="16dp"
         android:visibility="gone">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/tvRunStats"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:alpha="0.7"
+            android:gravity="center"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            tools:text="0,83 km · 1.430 Schritte · 48 kcal" />
 
-            <TextView
-                android:id="@+id/tvRunLeft"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                tools:text="12:30 von 30:00" />
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
-            <TextView
-                android:id="@+id/tvRunRight"
+        <FrameLayout
+            android:layout_width="168dp"
+            android:layout_height="168dp"
+            android:layout_gravity="center_horizontal">
+
+            <de.dimitri.pitpatlite.ProgressRingView
+                android:id="@+id/ring"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                tools:text="0,83 km" />
-        </LinearLayout>
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical">
 
-        <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/progress"
+                <TextView
+                    android:id="@+id/tvGoalMain"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-light"
+                    android:includeFontPadding="false"
+                    android:textColor="@color/goal"
+                    android:textSize="38sp"
+                    tools:text="17:30" />
+
+                <TextView
+                    android:id="@+id/tvGoalSub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.7"
+                    android:textAppearance="?attr/textAppearanceLabelMedium"
+                    tools:text="von 30:00" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tvGoalLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:visibility="invisible"
-            app:trackCornerRadius="3dp"
-            app:trackThickness="6dp" />
+            android:gravity="center"
+            android:letterSpacing="0.08"
+            android:textAllCaps="true"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="@color/goal"
+            tools:text="Ziel 30 min" />
 
         <Space
             android:layout_width="match_parent"
@@ -200,16 +233,6 @@
             android:layout_width="match_parent"
             android:layout_height="86dp"
             android:layout_marginTop="8dp" />
-
-        <TextView
-            android:id="@+id/tvRunStats"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:alpha="0.7"
-            android:gravity="center"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            tools:text="1.430 Schritte · 48 kcal" />
 
         <LinearLayout
             android:id="@+id/rowIncline"
