@@ -101,7 +101,11 @@ class LineChartView @JvmOverloads constructor(context: Context, attrs: Attribute
                 val subH = if (subLabels.any { it.isNotEmpty() }) 13 * d else 0f
                 if (i < labels.size) c.drawText(labels[i], px, height - 3 * d - subH, label)
                 if (sub.isNotEmpty()) c.drawText(sub, px, height - 3 * d, label)
-                if (i == selected) c.drawText(valueText(values[i]), px, py - 10 * d, valueLabel)
+                if (i == selected) {
+                    val t = valueText(values[i])
+                    val half = valueLabel.measureText(t) / 2 + 2 * d
+                    c.drawText(t, px.coerceIn(half, width - half), py - 10 * d, valueLabel)
+                }
             }
         } else {
             val px = x(n - 1); val py = y(values[n - 1], max)
