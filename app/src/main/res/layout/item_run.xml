@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
+    app:cardBackgroundColor="?attr/colorSurfaceVariant"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
     app:strokeWidth="0dp">
@@ -37,6 +38,22 @@
                 android:textColor="?attr/colorPrimary"
                 tools:text="30 min ✓" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvPb"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="@color/lock"
+            android:visibility="gone"
+            tools:text="PB Strecke · Zeit" />
+
+        <de.dimitri.pitpatlite.BarsView
+            android:id="@+id/bars"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp" />
 
         <GridLayout
             android:layout_width="match_parent"

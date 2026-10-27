@@ -28,6 +28,8 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
     private var base: Status? = null
     private var peak: Progress = Progress(0.0, 0.0, 0, 0)
     private var goalFired = false
+    private val samples = mutableListOf<Float>()
+    private var nextSampleAt = 0.0
 
     fun onStatus(s: Status): List<Event> {
         val events = mutableListOf<Event>()
@@ -38,12 +40,18 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
             base = s
             peak = Progress(0.0, 0.0, 0, 0)
             goalFired = false
+            samples.clear()
+            nextSampleAt = 0.0
             events += Event.Started
         }
         val start = startMs ?: return events
 
         progress = relative(s, base!!)
         if (progress.durationS >= peak.durationS) peak = progress
+        if (progress.durationS >= nextSampleAt) {
+            samples += s.currentKph.toFloat()
+            nextSampleAt = progress.durationS + Run.SAMPLE_SECONDS
+        }
 
         val g = goal
         if (g != null && !goalFired && s.state == BeltState.RUNNING && g.progress(progress.durationS, progress.distanceKm) >= 1.0) {
@@ -55,7 +63,7 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
             startMs = null
             if (peak.durationS >= MIN_RUN_SECONDS) {
                 events += Event.Finished(
-                    Run(start, peak.durationS.toInt(), peak.distanceKm, peak.steps, peak.calories, g?.label, goalFired)
+                    Run(start, peak.durationS.toInt(), peak.distanceKm, peak.steps, peak.calories, g?.label, goalFired, samples.toList())
                 )
             }
         }

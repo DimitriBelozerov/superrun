@@ -36,6 +36,21 @@
         android:textAppearance="?attr/textAppearanceBodyMedium"
         tools:text="12 Läufe · 34,50 km · 8 h 12 min" />
 
+    <de.dimitri.pitpatlite.BarsView
+        android:id="@+id/weekBars"
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/tvBests"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:lineSpacingExtra="4dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        tools:text="Längste Strecke 5,20 km · 21. Okt" />
+
     <TextView
         android:id="@+id/tvEmpty"
         android:layout_width="match_parent"

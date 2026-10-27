@@ -6,7 +6,10 @@
     <string name="state_disconnected">Nicht verbunden · tippen</string>
     <string name="state_dot_connected">● Verbunden</string>
     <string name="this_week">Diese Woche</string>
-    <string name="week_summary">%1$d Läufe · %2$s · %3$s</string>
+    <plurals name="week_summary">
+        <item quantity="one">%1$d Lauf · %2$s · %3$s</item>
+        <item quantity="other">%1$d Läufe · %2$s · %3$s</item>
+    </plurals>
     <string name="week_empty">Noch kein Lauf diese Woche</string>
     <string name="start_goal">Start · %1$s · %2$s km/h</string>
     <string name="run_stats">%1$d Schritte · %2$d kcal</string>
@@ -49,8 +52,17 @@
     <string name="unmute">Ton an</string>
     <string name="history">Verlauf</string>
     <string name="history_count">Verlauf · %1$d</string>
+    <string name="bests_title">Bestwerte</string>
+    <string name="best_distance">Längste Strecke</string>
+    <string name="best_duration">Längste Zeit</string>
+    <string name="best_avg">Schnellster Schnitt</string>
+    <string name="best_steps">Meiste Schritte</string>
+    <string name="pb_prefix">PB %1$s</string>
     <string name="history_empty">Noch keine Läufe.\nNach dem ersten Stopp erscheint dein Lauf hier.</string>
-    <string name="history_totals">%1$d Läufe · %2$s · %3$s</string>
+    <plurals name="history_totals">
+        <item quantity="one">%1$d Lauf · %2$s · %3$s</item>
+        <item quantity="other">%1$d Läufe · %2$s · %3$s</item>
+    </plurals>
     <string name="run_saved">Lauf gespeichert: %1$s · %2$s</string>
     <string name="run_delete">Lauf vom %1$s löschen?</string>
     <string name="avg_kph">Ø %1$s km/h</string>

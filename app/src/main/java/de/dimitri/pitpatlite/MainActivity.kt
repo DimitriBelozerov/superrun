@@ -271,8 +271,8 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         }
         val runs = runStore.load()
         val week = runs.filter { it.startMs >= cal.timeInMillis }
-        b.tvWeek.text = if (week.isEmpty()) getString(R.string.week_empty) else getString(
-            R.string.week_summary, week.size, Fmt.km2(week.sumOf { it.distanceKm }), Fmt.minutes(week.sumOf { it.durationS }.toDouble())
+        b.tvWeek.text = if (week.isEmpty()) getString(R.string.week_empty) else resources.getQuantityString(
+            R.plurals.week_summary, week.size, week.size, Fmt.km2(week.sumOf { it.distanceKm }), Fmt.minutes(week.sumOf { it.durationS }.toDouble())
         )
         b.btnHistory.text = if (runs.isEmpty()) getString(R.string.history) else getString(R.string.history_count, runs.size)
     }

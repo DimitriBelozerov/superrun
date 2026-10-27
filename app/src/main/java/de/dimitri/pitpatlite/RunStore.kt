@@ -12,19 +12,28 @@ data class Run(
     val calories: Int,
     val goal: String? = null,
     val goalReached: Boolean = false,
+    /** Belt speed every [SAMPLE_SECONDS] seconds, for the speed graph. */
+    val samples: List<Float> = emptyList(),
 ) {
     val avgKph: Double get() = if (durationS > 0) distanceKm / (durationS / 3600.0) else 0.0
 
     fun toJson(): JSONObject = JSONObject()
         .put("start", startMs).put("duration", durationS).put("distance", distanceKm)
         .put("steps", steps).put("calories", calories).put("goalReached", goalReached)
+        .put("samples", JSONArray().apply { samples.forEach { put(it.toDouble()) } })
         .apply { goal?.let { put("goal", it) } }
 
     companion object {
-        fun fromJson(o: JSONObject) = Run(
-            o.getLong("start"), o.getInt("duration"), o.getDouble("distance"), o.getLong("steps"), o.getInt("calories"),
-            if (o.has("goal")) o.getString("goal") else null, o.optBoolean("goalReached", false),
-        )
+        const val SAMPLE_SECONDS = 5
+
+        fun fromJson(o: JSONObject): Run {
+            val arr = o.optJSONArray("samples")
+            val samples = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getDouble(it).toFloat() }
+            return Run(
+                o.getLong("start"), o.getInt("duration"), o.getDouble("distance"), o.getLong("steps"), o.getInt("calories"),
+                if (o.has("goal")) o.getString("goal") else null, o.optBoolean("goalReached", false), samples,
+            )
+        }
     }
 }
 

@@ -24,7 +24,42 @@ class SessionTrackerTest {
         assertTrue(t.onStatus(status(BeltState.RUNNING, 600.0, 0.5, 700, 25)).isEmpty())
         val events = t.onStatus(status(BeltState.STOPPED, 0.0, 0.0))
         val run = (events.single() as SessionTracker.Event.Finished).run
-        assertEquals(Run(1000L, 600, 0.5, 700, 25), run)
+        assertEquals(Run(1000L, 600, 0.5, 700, 25), run.copy(samples = emptyList()))
+        // one sample at 0 s, 30 s and 600 s (packets are sparse in this test)
+        assertEquals(listOf(3.0f, 3.0f, 3.0f), run.samples)
+    }
+
+    @Test
+    fun samplesEveryFiveSeconds() {
+        val t = SessionTracker()
+        t.onStatus(status(BeltState.RUNNING, 0.0, 0.0))
+        for (sec in 1..20) t.onStatus(status(BeltState.RUNNING, sec.toDouble(), 0.0))
+        val run = (t.onStatus(status(BeltState.STOPPED, 20.0, 0.1)).single() as SessionTracker.Event.Finished).run
+        assertEquals(5, run.samples.size)
+    }
+
+    @Test
+    fun recordsBadgesAndBests() {
+        val runs = listOf(
+            Run(1L, 600, 1.0, 1000, 30),
+            Run(2L, 500, 1.5, 900, 40),   // distance record, avg record
+            Run(3L, 700, 1.2, 1200, 50),  // duration + steps record
+            Run(4L, 100, 0.1, 10, 1),
+        )
+        val badges = Records.badges(runs)
+        assertEquals(null, badges[1L])
+        assertEquals(listOf(Records.Kind.DISTANCE, Records.Kind.AVG), badges[2L])
+        assertEquals(listOf(Records.Kind.DURATION, Records.Kind.STEPS), badges[3L])
+        assertEquals(null, badges[4L])
+        val bests = Records.bests(runs)
+        assertEquals(2L, bests[Records.Kind.DISTANCE]?.startMs)
+        assertEquals(3L, bests[Records.Kind.DURATION]?.startMs)
+    }
+
+    @Test
+    fun runJsonKeepsSamples() {
+        val r = Run(5L, 60, 0.1, 100, 5, samples = listOf(1.5f, 2.0f))
+        assertEquals(r, Run.fromJson(r.toJson()))
     }
 
     @Test
