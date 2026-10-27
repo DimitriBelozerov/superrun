@@ -38,6 +38,8 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
     private var writeBusy = false
     private var reconnectAttempts = 0
     private var userDisconnect = false
+    private var discoveryStarted = false
+    private var notifyRequested = false
 
     var state: ConnState = ConnState.DISCONNECTED
         private set
@@ -113,6 +115,8 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
     private fun connectTo(device: BluetoothDevice) {
         closeGatt()
         address = device.address
+        discoveryStarted = false
+        notifyRequested = false
         setState(ConnState.CONNECTING)
         gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
@@ -146,6 +150,7 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
         val c = writeChar ?: return
         val packet = writeQueue.removeFirstOrNull() ?: return
         writeBusy = true
+        Log.d(TAG, "write: ${PitPatProtocol.toHex(packet)}")
         val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             g.writeCharacteristic(c, packet, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
         } else {
@@ -182,7 +187,7 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
             Log.d(TAG, "conn state=$newState status=$status")
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 // Status packets are 48+ bytes; default MTU 23 would truncate notifications.
-                if (!g.requestMtu(MTU)) g.discoverServices()
+                if (!g.requestMtu(MTU)) startDiscovery(g)
             } else {
                 main.post {
                     closeGatt()
@@ -192,11 +197,14 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
         }
 
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
+            // Android may report this twice (our request + the peer's exchange); discover only once.
             Log.d(TAG, "mtu=$mtu status=$status")
-            g.discoverServices()
+            startDiscovery(g)
         }
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+            if (notifyRequested) return
+            notifyRequested = true
             val service = g.getService(PitPatProtocol.SERVICE_UUID)
             val w = service?.getCharacteristic(PitPatProtocol.WRITE_UUID)
             val n = service?.getCharacteristic(PitPatProtocol.NOTIFY_UUID)
@@ -220,7 +228,7 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
         }
 
         override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) Log.w(TAG, "write status $status")
+            Log.d(TAG, "write done status=$status")
             main.post {
                 writeBusy = false
                 drainQueue()
@@ -237,6 +245,12 @@ class TreadmillBle(private val context: Context, private val listener: Listener)
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) c.value?.let { handleNotification(it) }
         }
+    }
+
+    private fun startDiscovery(g: BluetoothGatt) {
+        if (discoveryStarted) return
+        discoveryStarted = true
+        g.discoverServices()
     }
 
     private fun handleNotification(value: ByteArray) {
