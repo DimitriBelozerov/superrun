@@ -100,7 +100,9 @@ class HistoryActivity : AppCompatActivity() {
             subs += if (i == 0 || c.get(Calendar.DAY_OF_MONTH) == 1) monthFmt.format(c.time).trimEnd('.') else ""
         }
         val density = resources.displayMetrics.density
-        b.weekChart.layoutParams = b.weekChart.layoutParams.apply { width = (n * DAY_WIDTH_DP * density).toInt() }
+        // Inside a HorizontalScrollView the child is measured UNSPECIFIED; a plain View then takes its minimum width.
+        b.weekChart.minimumWidth = (n * DAY_WIDTH_DP * density).toInt()
+        b.weekChart.requestLayout()
         b.weekChart.values = values
         b.weekChart.labels = labels
         b.weekChart.subLabels = subs
