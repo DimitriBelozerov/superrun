@@ -14,6 +14,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.button.MaterialButton
 import de.dimitri.pitpatlite.PitPatProtocol.BeltState
 import de.dimitri.pitpatlite.databinding.ActivityMainBinding
@@ -51,6 +53,12 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener {
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
+        // Edge-to-edge (API 35+): keep content out of the status/navigation bar zones.
+        ViewCompat.setOnApplyWindowInsetsListener(b.root) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
         ble = TreadmillBle(applicationContext, this)
 
         targetKph = prefs.getFloat("target", 2.0f).toDouble()
