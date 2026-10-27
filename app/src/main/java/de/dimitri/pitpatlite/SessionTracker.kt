@@ -12,6 +12,8 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
 
     sealed class Event {
         object Started : Event()
+        /** Goal is [WARN_SECONDS] s / [WARN_KM] km away; fired once. */
+        object GoalNear : Event()
         object GoalReached : Event()
         data class Finished(val run: Run) : Event()
     }
@@ -28,6 +30,7 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
     private var base: Status? = null
     private var peak: Progress = Progress(0.0, 0.0, 0, 0)
     private var goalFired = false
+    private var nearFired = false
     private val samples = mutableListOf<Float>()
     private var nextSampleAt = 0.0
 
@@ -40,6 +43,7 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
             base = s
             peak = Progress(0.0, 0.0, 0, 0)
             goalFired = false
+            nearFired = false
             samples.clear()
             nextSampleAt = 0.0
             events += Event.Started
@@ -54,9 +58,19 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
         }
 
         val g = goal
-        if (g != null && !goalFired && s.state == BeltState.RUNNING && g.progress(progress.durationS, progress.distanceKm) >= 1.0) {
-            goalFired = true
-            events += Event.GoalReached
+        if (g != null && s.state == BeltState.RUNNING) {
+            val near = when (g.type) {
+                Goal.Type.TIME -> g.value * 60 - progress.durationS <= WARN_SECONDS
+                Goal.Type.DISTANCE -> g.value - progress.distanceKm <= WARN_KM
+            }
+            if (near && !nearFired && !goalFired) {
+                nearFired = true
+                events += Event.GoalNear
+            }
+            if (!goalFired && g.progress(progress.durationS, progress.distanceKm) >= 1.0) {
+                goalFired = true
+                events += Event.GoalReached
+            }
         }
 
         if (s.state == BeltState.STOPPED) {
@@ -81,5 +95,7 @@ class SessionTracker(private val now: () -> Long = System::currentTimeMillis) {
 
     companion object {
         const val MIN_RUN_SECONDS = 10.0
+        const val WARN_SECONDS = 30.0
+        const val WARN_KM = 0.05
     }
 }

@@ -88,11 +88,23 @@ class SessionTrackerTest {
         t.goal = Goal(Goal.Type.DISTANCE, 1.0)
         t.onStatus(status(BeltState.RUNNING, 0.0, 0.0))
         assertTrue(t.onStatus(status(BeltState.RUNNING, 100.0, 0.5)).isEmpty())
+        assertEquals(listOf(SessionTracker.Event.GoalNear), t.onStatus(status(BeltState.RUNNING, 190.0, 0.96)))
+        assertTrue(t.onStatus(status(BeltState.RUNNING, 195.0, 0.98)).isEmpty())
         assertEquals(listOf(SessionTracker.Event.GoalReached), t.onStatus(status(BeltState.RUNNING, 200.0, 1.0)))
         assertTrue(t.onStatus(status(BeltState.RUNNING, 201.0, 1.01)).isEmpty())
         val run = (t.onStatus(status(BeltState.STOPPED, 0.0, 0.0)).single() as SessionTracker.Event.Finished).run
         assertEquals("1 km", run.goal)
         assertTrue(run.goalReached)
+    }
+
+    @Test
+    fun timeGoalWarnsThirtySecondsBefore() {
+        val t = SessionTracker()
+        t.goal = Goal(Goal.Type.TIME, 1.0)
+        t.onStatus(status(BeltState.RUNNING, 0.0, 0.0))
+        assertTrue(t.onStatus(status(BeltState.RUNNING, 29.0, 0.0)).isEmpty())
+        assertEquals(listOf(SessionTracker.Event.GoalNear), t.onStatus(status(BeltState.RUNNING, 30.0, 0.0)))
+        assertEquals(listOf(SessionTracker.Event.GoalReached), t.onStatus(status(BeltState.RUNNING, 60.0, 0.0)))
     }
 
     @Test

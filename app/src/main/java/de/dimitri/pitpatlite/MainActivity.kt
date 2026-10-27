@@ -216,6 +216,10 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         for (event in tracker.onStatus(status)) {
             when (event) {
                 SessionTracker.Event.Started -> Unit
+                SessionTracker.Event.GoalNear -> {
+                    vibrate(short = true)
+                    toast(getString(if (selectedGoal?.type == Goal.Type.TIME) R.string.goal_near_time else R.string.goal_near_distance))
+                }
                 SessionTracker.Event.GoalReached -> {
                     vibrate()
                     ble.send(PitPatProtocol.stop())
@@ -451,14 +455,15 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
 
     // --- helpers ---
 
-    private fun vibrate() {
+    private fun vibrate(short: Boolean = false) {
         val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
         } else {
             @Suppress("DEPRECATION")
             getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
-        v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1))
+        val pattern = if (short) longArrayOf(0, 150, 100, 150) else longArrayOf(0, 400, 200, 400, 200, 400)
+        v.vibrate(VibrationEffect.createWaveform(pattern, -1))
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

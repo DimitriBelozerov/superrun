@@ -41,6 +41,8 @@
     <string name="goal_delete">Ziel „%1$s“ löschen?</string>
     <string name="goal_label">Ziel %1$s</string>
     <string name="goal_reached">Ziel erreicht – Band stoppt</string>
+    <string name="goal_near_time">Noch 30 s – dann stoppt das Band</string>
+    <string name="goal_near_distance">Noch 50 m – dann stoppt das Band</string>
     <string name="save">Speichern</string>
     <string name="delete">Löschen</string>
     <string name="back">Zurück</string>
