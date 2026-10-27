@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="stop">#B3261E</color>
+    <color name="primary">#1E6F5C</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#A7F3D0</color>
+    <color name="on_primary_container">#00382A</color>
+    <color name="primary_dark">#7FD8BE</color>
+    <color name="on_primary_dark">#003829</color>
+    <color name="primary_container_dark">#1E5547</color>
+    <color name="on_primary_container_dark">#A7F3D0</color>
+</resources>
