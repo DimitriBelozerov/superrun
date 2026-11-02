@@ -13,8 +13,8 @@ android {
         applicationId = "de.dimitri.pitpatlite"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
     }
 
     // Release key: /mnt/data1/ssh/superrun-keystore.properties (outside the repo). Falls back to the debug key.

@@ -69,6 +69,11 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         }
     }
 
+    // Belt starts/resumes at its own minimum and ignores the start speed: push the wanted speed once it runs.
+    private var pendingKph: Double? = null
+    private var pendingSince = 0L
+    private var pendingSentAt = 0L
+
     private var inclineSendPending = false
     private val sendInclineRunnable = Runnable {
         inclineSendPending = false
@@ -110,9 +115,9 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         }
         b.btnInclineMinus.setOnClickListener { adjustIncline(-1) }
         b.btnInclinePlus.setOnClickListener { adjustIncline(1) }
-        b.btnStart.setOnClickListener { ble.send(PitPatProtocol.start(targetKph, targetIncline)) }
-        b.btnPause.setOnClickListener { ble.send(PitPatProtocol.pause()) }
-        b.btnStop.setOnClickListener { ble.send(PitPatProtocol.stop()) }
+        b.btnStart.setOnClickListener { startBelt() }
+        b.btnPause.setOnClickListener { if (last?.state == BeltState.PAUSED) startBelt() else ble.send(PitPatProtocol.pause()) }
+        b.btnStop.setOnClickListener { pendingKph = null; ble.send(PitPatProtocol.stop()) }
         val openHistory = View.OnClickListener { startActivity(Intent(this, HistoryActivity::class.java)) }
         b.btnHistory.setOnClickListener(openHistory)
         b.cardWeek.setOnClickListener(openHistory)
@@ -202,7 +207,8 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
             rails.forEach { it.maxKph = maxKph }
         }
         maxIncline = status.maxIncline
-        if (!b.rail.isDragging && !b.rail.locked) {
+        applyPendingSpeed(status)
+        if (!b.rail.isDragging && !b.rail.locked && pendingKph == null) {
             if (status.state == BeltState.RUNNING && status.targetKph > 0 && abs(status.targetKph - targetKph) >= 0.05) {
                 targetKph = status.targetKph
                 rails.forEach { it.value = targetKph }
@@ -250,6 +256,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
             else -> getString(R.string.belt_stopped)
         } + if (s?.checksumOk == false) " ⚠" else ""
         b.tvBeltState.text = getString(R.string.unit_state, stateText)
+        b.btnPause.text = getString(if (s?.state == BeltState.PAUSED) R.string.resume else R.string.pause)
         val p = tracker.progress
         b.tvRunStats.text = getString(R.string.run_stats, Fmt.km2(p.distanceKm), p.steps.toInt(), p.calories)
         b.rowIncline.visibility = if (maxIncline > 0) View.VISIBLE else View.GONE
@@ -280,6 +287,26 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
     }
 
     // --- rail ---
+
+    private fun startBelt() {
+        pendingKph = targetKph
+        pendingSince = SystemClock.elapsedRealtime()
+        pendingSentAt = 0L
+        ble.send(PitPatProtocol.start(targetKph, targetIncline))
+    }
+
+    /** After start/resume: once the belt runs, send the wanted speed until the belt reports it as target. */
+    private fun applyPendingSpeed(s: PitPatProtocol.Status) {
+        val want = pendingKph ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (now - pendingSince > PENDING_MAX_MS) { pendingKph = null; return }
+        if (s.state != BeltState.RUNNING) return
+        if (abs(s.targetKph - want) < 0.05) { pendingKph = null; return }
+        if (now - pendingSentAt >= PENDING_RESEND_MS) {
+            pendingSentAt = now
+            ble.send(PitPatProtocol.setSpeed(want, targetIncline))
+        }
+    }
 
     private fun isMoving(): Boolean = last?.state == BeltState.RUNNING || last?.state == BeltState.STARTING
 
@@ -482,5 +509,7 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         private const val LOCK_MAX_MS = 3000L
         private const val LOCK_TOLERANCE = 0.1
         private const val LOCK_TICK_MS = 200L
+        private const val PENDING_MAX_MS = 15_000L
+        private const val PENDING_RESEND_MS = 1500L
     }
 }
