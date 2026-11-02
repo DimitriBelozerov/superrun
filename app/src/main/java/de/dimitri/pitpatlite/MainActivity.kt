@@ -122,6 +122,8 @@ class MainActivity : AppCompatActivity(), TreadmillBle.Listener, SpeedRailView.L
         b.btnHistory.setOnClickListener(openHistory)
         b.cardWeek.setOnClickListener(openHistory)
 
+        b.tvVersion.text = "v" + packageManager.getPackageInfo(packageName, 0).versionName
+
         buildGoalChips()
         renderTarget()
         renderIncline()

@@ -310,5 +310,14 @@
             android:fontFamily="monospace"
             android:textSize="10sp"
             android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvVersion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:alpha="0.6"
+            android:fontFamily="monospace"
+            android:textSize="10sp" />
     </LinearLayout>
 </FrameLayout>
